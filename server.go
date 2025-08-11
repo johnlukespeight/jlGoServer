@@ -33,13 +33,33 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Initialize database connection
+	InitDB()
+	
+	// Auto migrate models
+	DB.AutoMigrate(&User{})
+
+	// Create a new server mux for more control
+	mux := http.NewServeMux()
+	
+	// Set up static file server
 	fileServer := http.FileServer(http.Dir("./static"))
-	http.Handle("/", fileServer)
-	http.HandleFunc("/form", formHandler)
-	http.HandleFunc("/hello", helloHandler)
+	mux.Handle("/", fileServer)
+	
+	// Register existing handlers
+	mux.HandleFunc("/form", formHandler)
+	mux.HandleFunc("/hello", helloHandler)
+	
+	// Register new API routes - make sure the more specific route comes first
+	mux.HandleFunc("/api/users/", UserRouteHandler)  // This matches /api/users/{id}
+	mux.HandleFunc("/api/users", UserRouteHandler)   // This matches exact /api/users
+	
+	// Wrap with debug handler
+	handler := debugHandler(mux)
 
 	fmt.Printf("Server started at port 8080\n")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Printf("Access user management UI at http://localhost:8080/users.html\n")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)
 	}
 }

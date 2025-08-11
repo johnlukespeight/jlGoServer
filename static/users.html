@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        form {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+        }
+        .edit-btn:hover {
+            background-color: #0b7dda;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Management</h1>
+    
+    <form id="userForm">
+        <h2 id="formTitle">Add New User</h2>
+        <input type="hidden" id="userId">
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" required>
+        </div>
+        <div class="form-group">
+            <label for="address">Address:</label>
+            <input type="text" id="address">
+        </div>
+        <button type="submit">Save User</button>
+        <button type="button" id="cancelBtn" style="display:none; background-color: #ccc;">Cancel</button>
+    </form>
+    
+    <h2>Users</h2>
+    <table id="userTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Address</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="userList">
+            <!-- User list will be populated here -->
+        </tbody>
+    </table>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userForm = document.getElementById('userForm');
+            const userList = document.getElementById('userList');
+            const formTitle = document.getElementById('formTitle');
+            const userId = document.getElementById('userId');
+            const nameInput = document.getElementById('name');
+            const emailInput = document.getElementById('email');
+            const addressInput = document.getElementById('address');
+            const cancelBtn = document.getElementById('cancelBtn');
+            
+            // Load users when page loads
+            loadUsers();
+            
+            // Add/Update user
+            userForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const user = {
+                    name: nameInput.value,
+                    email: emailInput.value,
+                    address: addressInput.value
+                };
+                
+                if (userId.value) {
+                    // Update existing user
+                    updateUser(userId.value, user);
+                } else {
+                    // Create new user
+                    createUser(user);
+                }
+            });
+            
+            // Cancel edit
+            cancelBtn.addEventListener('click', function() {
+                resetForm();
+            });
+            
+            // Load users from API
+            function loadUsers() {
+                fetch('/api/users')
+                    .then(response => response.json())
+                    .then(users => {
+                        userList.innerHTML = '';
+                        
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.ID}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.address}</td>
+                                <td class="actions">
+                                    <button class="edit-btn" data-id="${user.ID}">Edit</button>
+                                    <button class="delete-btn" data-id="${user.ID}">Delete</button>
+                                </td>
+                            `;
+                            userList.appendChild(row);
+                        });
+                        
+                        // Add event listeners for edit and delete buttons
+                        document.querySelectorAll('.edit-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const id = this.getAttribute('data-id');
+                                editUser(id);
+                            });
+                        });
+                        
+                        document.querySelectorAll('.delete-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const id = this.getAttribute('data-id');
+                                deleteUser(id);
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading users:', error);
+                    });
+            }
+            
+            // Create user
+            function createUser(user) {
+                fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(user)
+                })
+                .then(response => response.json())
+                .then(() => {
+                    resetForm();
+                    loadUsers();
+                })
+                .catch(error => {
+                    console.error('Error creating user:', error);
+                });
+            }
+            
+            // Update user
+            function updateUser(id, user) {
+                fetch(`/api/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(user)
+                })
+                .then(response => response.json())
+                .then(() => {
+                    resetForm();
+                    loadUsers();
+                })
+                .catch(error => {
+                    console.error('Error updating user:', error);
+                });
+            }
+            
+            // Delete user
+            function deleteUser(id) {
+                if (confirm('Are you sure you want to delete this user?')) {
+                    fetch(`/api/users/${id}`, {
+                        method: 'DELETE'
+                    })
+                    .then(() => {
+                        loadUsers();
+                    })
+                    .catch(error => {
+                        console.error('Error deleting user:', error);
+                    });
+                }
+            }
+            
+            // Edit user - populate form
+            function editUser(id) {
+                fetch(`/api/users/${id}`)
+                    .then(response => response.json())
+                    .then(user => {
+                        userId.value = user.ID;
+                        nameInput.value = user.name;
+                        emailInput.value = user.email;
+                        addressInput.value = user.address;
+                        
+                        formTitle.textContent = 'Edit User';
+                        cancelBtn.style.display = 'inline-block';
+                    })
+                    .catch(error => {
+                        console.error('Error loading user:', error);
+                    });
+            }
+            
+            // Reset form
+            function resetForm() {
+                userForm.reset();
+                userId.value = '';
+                formTitle.textContent = 'Add New User';
+                cancelBtn.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
